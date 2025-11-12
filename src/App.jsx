@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
-import { BrowserRouter, Routes, Route, Link, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import './index.css'
 
 const colors = {
@@ -123,7 +122,7 @@ function LogPanel({ logs }){
   )
 }
 
-function Dashboard(){
+export function Dashboard(){
   const baseUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
   const [hunter, setHunter] = useState(null)
   const [quests, setQuests] = useState([])
@@ -132,22 +131,24 @@ function Dashboard(){
   useEffect(()=>{ init() },[])
 
   async function init(){
-    // auto create/get hunter for demo
-    const hunterRes = await fetch(`${baseUrl}/api/hunter`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({display_name:'Shadow Initiate'})})
-    const h = await hunterRes.json()
-    setHunter(h)
+    try {
+      const hunterRes = await fetch(`${baseUrl}/api/hunter`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({display_name:'Shadow Initiate'})})
+      const h = await hunterRes.json()
+      setHunter(h)
 
-    // seed dailies if none
-    const qRes = await fetch(`${baseUrl}/api/quests?hunter_id=${h.id}`)
-    let q = await qRes.json()
-    if(q.length === 0){
-      await fetch(`${baseUrl}/api/seed/dailies?hunter_id=${h.id}`, {method:'POST'})
-      q = await (await fetch(`${baseUrl}/api/quests?hunter_id=${h.id}`)).json()
+      const qRes = await fetch(`${baseUrl}/api/quests?hunter_id=${h.id}`)
+      let q = await qRes.json()
+      if(q.length === 0){
+        await fetch(`${baseUrl}/api/seed/dailies?hunter_id=${h.id}`, {method:'POST'})
+        q = await (await fetch(`${baseUrl}/api/quests?hunter_id=${h.id}`)).json()
+      }
+      setQuests(q)
+
+      const logsRes = await fetch(`${baseUrl}/api/logs?hunter_id=${h.id}&limit=20`)
+      setLogs(await logsRes.json())
+    } catch (e) {
+      console.error('Init error', e)
     }
-    setQuests(q)
-
-    const logsRes = await fetch(`${baseUrl}/api/logs?hunter_id=${h.id}&limit=20`)
-    setLogs(await logsRes.json())
   }
 
   async function completeQuest(id){
@@ -220,14 +221,12 @@ function Dashboard(){
   )
 }
 
-function GateOnboarding(){
+export function GateOnboarding(){
   const [open, setOpen] = useState(false)
-  const navigate = useNavigate()
 
   useEffect(()=>{
     const t = setTimeout(()=> setOpen(true), 800)
-    const n = setTimeout(()=> navigate('/'), 2500)
-    return ()=>{ clearTimeout(t); clearTimeout(n) }
+    return ()=>{ clearTimeout(t) }
   },[])
 
   return (
@@ -241,21 +240,9 @@ function GateOnboarding(){
           You have awakened as a Hunter
         </h1>
         <p className="text-[#C0C0C0] mt-3">Begin your path.</p>
-        <div className="mt-6">
-          <Link to="/" className="px-5 py-2 rounded bg-[#5A00FF]/40 hover:bg-[#5A00FF]/60 text-white border border-[#5A00FF]/40" style={{boxShadow:`0 0 24px ${colors.purple}55`}}>Enter Gate</Link>
-        </div>
       </div>
     </div>
   )
 }
 
-export default function App(){
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Dashboard/>} />
-        <Route path="/gate" element={<GateOnboarding/>} />
-      </Routes>
-    </BrowserRouter>
-  )
-}
+export default Dashboard
